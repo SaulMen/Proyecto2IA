@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proyecto IA</title>
+    <script type="text/javascript" src="./dist/tytus.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+    <center>
+        <input type="file" id="archivo" name="avatar" accept=".csv" /><p id="datos"></p>
+        <select id="select">
+            <option value="">--Please choose an option--</option>
+            <option value="lineal">Regresión Lineal</option>
+            <option value="polinomial">Polinomial</option>
+            <option value="kmeans">Kmeans Neighbor</option>
+        </select><p></p>
+    </center>
+    
+    <div id="lineal" hidden="hidden">
+        <h2>Regresión Lineal</h2>
+        <div>
+            <h3>Datos de Entrenamiento</h3>
+            <label for="xTrain">X Train (valores separados por comas):</label>
+            <input type="text" id="xTrain" value="0,1,2,3,4,5,6,7,8,9">
+            <br>
+            <label for="yTrain">Y Train (valores separados por comas):</label>
+            <input type="text" id="yTrain" value="1,4,1,5,3,7,2,7,4,9">
+            <br>
+            <label for="yTrain">Porcentaje de Train Data y Test Data</label>
+            <input type="number" id="porcentaje" value="100"><p></p>
+            <br>
+        </div>
+        <!-- Botón para realizar el entrenamiento -->
+        <button onclick="entrenarLineal()">Entrenar</button>
+        <button onclick="predecirLineal()">Predecir</button>
+        <!-- Área para mostrar el resultado de la predicción -->
+        <p id="log"></p>    
+        <button type="submit" onclick="mostrarGrafica()">Mostrar Gráfica</button>
+        <button type="submit" onclick="mostrarTodoCsv()">Mostrar Gráfica CSV</button>
+        <div id="grafica_lineal" style="width: auto; height: auto;" hidden="hidden"></div>
+    </div>
+
+    <div id="polinomial" hidden="hidden">
+        <h2>Regresión Polinomial</h2>
+        <div>
+            <h3>Datos de Entrenamiento</h3>
+            <label for="polinomialXTrain">X Train (valores separados por comas):</label>
+            <input type="text" id="polinomialXTrain" value="0,1,2,3,4,5,6,7,8,9">
+            <br>
+            <label for="polinomialYTrain">Y Train (valores separados por comas):</label>
+            <input type="text" id="polinomialYTrain" value="0,15,5,25,40,35,10,5,45,35">
+            <br>
+            <label for="polinomialDegree">Grado del polinomio:</label>
+            <input type="number" id="polinomialDegree" value="2">
+            <br>
+            <!-- Nuevo botón para cargar datos del CSV en X e Y para regresión polinomial -->
+            <button onclick="cargarCsvPolinomial()">Cargar CSV en Polinomial</button>
+        </div>
+        <button onclick="PolinomialEntrenar()">Entrenar</button>
+        <button onclick="PolinomialPredecir()">Predecir</button>
+        <p id="polinomialLog"></p>    
+        <button onclick="PolinomialMostrarGrafica()">Mostrar Gráfica</button>
+        <div id="polinomialGrafica" style="width: auto; height: auto;" hidden="hidden"></div>
+    </div>
+
+    <div id="kmeans" hidden="hidden">
+        <h3>Datos de Entrenamiento</h3>
+        <div id="inputs">
+            <p>Ingrese los valores de X, Y y Grupo:</p>
+            <div id="datos">
+                <input type="text" id="x2" placeholder="X (separado por comas)">
+                <input type="text" id="y2" placeholder="Y (separado por comas)">
+                <input type="text" id="group" placeholder="Grupo (separado por comas)">
+                <button onclick="KllenarTabla()">Llenar Tabla</button>
+            </div>
+        </div>
+        <h3>Punto Objetivo</h3>
+        <input type="text" id="pointX" placeholder="X del Punto">
+        <input type="text" id="pointY" placeholder="Y del Punto">
+        <button onclick="KejecutarKNN()">Ejecutar KNN</button>
+        <div id="tabla"></div>
+        <div id="punto"></div>
+        <div id="logE"></div>
+        <div id="logM"></div>
+        <div id="chart_div" style="width: 800px; height: 500px;"></div>
+    </div>
+    
+    
+
+    <script type="text/javascript">
+        // Variables para lineal
+        let lineal;
+        let xData = []
+        let yData = []
+        // Variables para polinomial
+        let polinomialModel;
+        // Variables para Kmeans
+        var ind = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+        var x2 = [];
+        var y2 = [];
+        var group = [];
+        var point = []; 
+
+        const ver_valor = document.getElementById('select');
+        ver_valor.addEventListener('change', function() {
+            ocultar(ver_valor.value)
+        });
+
+        // Función para leer el archivo CSV y almacenar los datos en listas
+        document.getElementById('archivo').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    document.getElementById('datos').innerText = content;
+                    procesarCSV(content);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function procesarCSV(data) {
+            const lines = data.split('\n');
+            xData = [];
+            yData = [];
+            lines.forEach(line => {
+                const [x, y] = line.split(',').map(Number);
+                if (!isNaN(x) && !isNaN(y)) {
+                    xData.push(x);
+                    yData.push(y);
+                }
+            });
+            // Mostrar los datos en los campos de entrada
+            document.getElementById("xTrain").value = xData.join(',');
+            document.getElementById("yTrain").value = yData.join(',');
+            console.log("Datos de X:", xData);
+            console.log("Datos de Y:", yData);
+        }
+        // Función para ocultar elementos, es decir, los divs
+        function ocultar(value) {
+            document.getElementById("lineal").hidden = value !== "lineal";
+            document.getElementById("polinomial").hidden = value !== "polinomial";
+            document.getElementById("kmeans").hidden = value !== "kmeans";
+        }
+        
+        function entrenarLineal() {
+            // Obtener los valores de entrenamiento ingresados por el usuario
+            let xTrain = document.getElementById("xTrain").value.split(',').map(Number);
+            let yTrain = document.getElementById("yTrain").value.split(',').map(Number);
+            let porcentaje = (Math.round(document.getElementById("porcentaje").value/10) * 10)/100;
+            console.log(xTrain.length*porcentaje)
+            
+            let newXTrain = xTrain.slice(0,Math.round(xTrain.length*porcentaje))
+            let newYTrain = yTrain.slice(0,Math.round(yTrain.length*porcentaje))
+
+            console.log(newXTrain,newYTrain)
+
+            // Configurar y entrenar el modelo
+            linear = new LinearRegression();
+            linear.fit(newXTrain, newYTrain);
+
+            // Mostrar mensaje en el log
+            document.getElementById("log").innerHTML = 'Modelo entrenado exitosamente!';
+        }
+
+        function mostrarGrafica(){
+            document.getElementById("grafica_lineal").hidden = false;
+        }
+
+        // Funcion para la predicción lineal con input de entrada
+        function predecirLineal() {
+            if (!linear) {
+                document.getElementById("log").innerHTML = 'Por favor, entrene el modelo primero.';
+                return;
+            }
+
+            // Obtener valores de X para predicción (puede ser el mismo conjunto de entrenamiento)
+            
+
+            let xTrain = document.getElementById("xTrain").value.split(',').map(Number);
+            let porcentaje = (Math.round(document.getElementById("porcentaje").value/10) * 10)/100;
+            let newXTrain = xTrain.slice(0,Math.round(xTrain.length*porcentaje))
+
+            let yPredict = linear.predict(newXTrain);
+
+            // Mostrar los resultados en el log
+            console.log(yPredict)
+            //document.getElementById("log").innerHTML += '<br>Predicciones: ' + yPredict;
+            document.getElementById("log").innerHTML+='<br>Resultados:<br>'
+            for (let i = 0; i < yPredict.length; i++) {
+                document.getElementById("log").innerHTML+= yPredict[i]+'<br>'
+            }
+            
+            // Generar datos para el gráfico
+            let chartData = [['X', 'Y Train', 'Y Predict']];
+            let yTrain = document.getElementById("yTrain").value.split(',').map(Number);
+            let newYTrain = yTrain.slice(0,Math.round(yTrain.length*porcentaje))
+            for (let i = 0; i < newXTrain.length; i++) {
+                chartData.push([newXTrain[i], newYTrain[i], yPredict[i]]);
+            }
+
+            // Cargar y mostrar el gráfico
+            google.charts.load('current', {'packages': ['corechart']});
+            google.charts.setOnLoadCallback(function () {
+                drawChart(chartData);
+            });
+        }
+
+        function mostrarTodoCsv() {
+            // Verificar si los datos del archivo CSV están cargados
+            if (xData.length === 0 || yData.length === 0) {
+                document.getElementById("log").innerHTML = 'Por favor, cargue un archivo CSV primero.';
+                return;
+            }
+
+            // Obtener el porcentaje de datos de entrenamiento
+            let porcentaje = Math.round(document.getElementById("porcentaje").value) / 100;
+            let xTrain = xData.slice(0, Math.round(xData.length * porcentaje));
+            let yTrain = yData.slice(0, Math.round(yData.length * porcentaje));
+
+            // Entrenar el modelo de regresión lineal
+            linear = new LinearRegression();
+            linear.fit(xTrain, yTrain);
+
+            // Realizar predicciones con los datos completos de xData
+            let yPredict = linear.predict(xData);
+
+            // Mostrar mensaje de entrenamiento exitoso
+            document.getElementById("log").innerHTML = 'Modelo entrenado exitosamente con los datos del CSV!';
+            document.getElementById("log").innerHTML+='<br>Resultados:<br>'
+            for (let i = 0; i < yPredict.length; i++) {
+                document.getElementById("log").innerHTML+= yPredict[i]+'<br>'
+            }
+            // Generar datos para el gráfico
+            let chartData = [['X', 'Y Real', 'Y Predicción']];
+            for (let i = 0; i < xData.length; i++) {
+                chartData.push([xData[i], yData[i], yPredict[i]]);
+            }
+
+            // Cargar y mostrar el gráfico
+            google.charts.load('current', {'packages': ['corechart']});
+            google.charts.setOnLoadCallback(function () {
+                drawChart(chartData);
+            });
+        }
+
+        // Función para dibujar el gráfico con input de entrada
+        function drawChart(dataArray) {
+            var data = google.visualization.arrayToDataTable(dataArray);
+            var options = {
+                title: 'Resultados de Regresión Lineal',
+                hAxis: { title: 'X' },
+                vAxis: { title: 'Y' },
+                seriesType: 'scatter',
+                series: {1: {type: 'line'}}
+            };
+            var chart = new google.visualization.ComboChart(document.getElementById('grafica_lineal'));
+            chart.draw(data, options);
+            //document.getElementById("grafica_lineal").hidden = false;
+        }
+
+        // Funciones para el modelo de Regresión Polinomial
+        // Función para entrenar el modelo de regresión polinomial
+        function PolinomialEntrenar() {
+            let xTrain = document.getElementById("polinomialXTrain").value.split(',').map(Number);
+            let yTrain = document.getElementById("polinomialYTrain").value.split(',').map(Number);
+            let degree = parseInt(document.getElementById("polinomialDegree").value);
+            
+            polinomialModel = new PolynomialRegression();
+            polinomialModel.fit(xTrain, yTrain, degree);
+
+            document.getElementById("polinomialLog").innerHTML = 'Modelo entrenado exitosamente con grado ' + degree + '!';
+        }
+
+        // Función para predecir usando el modelo de regresión polinomial
+        function PolinomialPredecir() {
+            if (!polinomialModel) {
+                document.getElementById("polinomialLog").innerHTML = 'Por favor, entrene el modelo primero.';
+                return;
+            }
+
+            let predictArray = document.getElementById("polinomialXTrain").value.split(',').map(Number);
+            let yPredict = polinomialModel.predict(predictArray);
+
+            // Redondear valores para mostrar en log
+            for (let i = 0; i < yPredict.length; i++) {
+                yPredict[i] = Number(yPredict[i].toFixed(2));
+            }
+
+            document.getElementById("polinomialLog").innerHTML += '<br>Predicciones: [' + yPredict + ']';
+            PolinomialGenerarGrafica(predictArray, yPredict);
+        }
+
+        function cargarCsvPolinomial() {
+            if (xData.length === 0 || yData.length === 0) {
+                alert('Por favor, cargue un archivo CSV primero.');
+                return;
+            }
+            // Asignar los datos del CSV a los campos X e Y de regresión polinomial
+            document.getElementById("polinomialXTrain").value = xData.join(',');
+            document.getElementById("polinomialYTrain").value = yData.join(',');
+        }
+
+        function PolinomialGenerarGrafica(xTrain, yPredict) {
+            let yTrain = document.getElementById("polinomialYTrain").value.split(',').map(Number);
+            let chartData = [['X', 'Y Real', 'Y Predicción']];
+            for (let i = 0; i < xTrain.length; i++) {
+                chartData.push([xTrain[i], yTrain[i], yPredict[i]]);
+            }
+
+            google.charts.load('current', {'packages': ['corechart']});
+            google.charts.setOnLoadCallback(function() {
+                var data = google.visualization.arrayToDataTable(chartData);
+                var options = {
+                    title: 'Regresión Polinomial',
+                    hAxis: { title: 'X' },
+                    vAxis: { title: 'Y' },
+                    seriesType: 'scatter',
+                    series: { 1: { type: 'line' } }
+                };
+                var chart = new google.visualization.ComboChart(document.getElementById('polinomialGrafica'));
+                document.getElementById("polinomialGrafica").hidden = false;
+                chart.draw(data, options);
+            });
+        }
+        
+        function PolinomialMostrarGrafica() {
+            document.getElementById("polinomialGrafica").hidden = false;
+        }
+
+        function KllenarTabla() {
+        x2 = document.getElementById("x2").value.split(",").map(Number);
+        y2 = document.getElementById("y2").value.split(",").map(Number);
+        group = document.getElementById("group").value.split(",");
+        point = [parseFloat(document.getElementById("pointX").value), parseFloat(document.getElementById("pointY").value)];
+
+        var tabla = "<table><tr><th>Index</th><th>X</th><th>Y</th><th>Grupo</th></tr>";
+        for (let i = 0; i < x2.length; i++) {
+            tabla += `<tr><td>${ind[i]}</td><td>${x2[i]}</td><td>${y2[i]}</td><td>${group[i]}</td></tr>`;
+        }
+        tabla += "</table>";
+        document.getElementById("tabla").innerHTML = tabla;
+
+        tabla = `<table><tr><td>J</td><td>${point[0]}</td><td>${point[1]}</td></tr></table>`;
+        document.getElementById("punto").innerHTML = tabla;
+    }
+
+    function KejecutarKNN() {
+        var individuals = zip([x2, y2, group]);
+        var knn = new KNearestNeighbor(individuals);
+        var euc = knn.euclidean(point);
+        var man = knn.manhattan(point);
+
+        document.getElementById("logE").innerHTML = "Distancia Euclidiana: " + euc;
+        document.getElementById("logM").innerHTML = "Distancia Manhattan: " + man;
+    }
+
+    google.charts.load("current", { packages: ["corechart"] });
+    google.charts.setOnLoadCallback(KdibujarGrafica);
+
+    function KdibujarGrafica() {
+        var dataArray = [['X', 'Y', { role: 'style' }, { role: 'tooltip', p: { html: true } }]];
+        for (let i = 0; i < x2.length; i++) {
+            var color = group[i] === 'N' ? '#d60e0e' : '#ffe600';
+            dataArray.push([x2[i], y2[i], `point { size: 10; shape-type: circle; fill-color: ${color}}`, group[i]]);
+        }
+        dataArray.push([point[0], point[1], 'point { size: 10; shape-type: star; fill-color: #00a00d}', 'Point']);
+
+        var data = google.visualization.arrayToDataTable(dataArray);
+        var options = {
+            legend: 'none',
+            tooltip: { isHtml: true },
+        };
+
+        var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+    }
+    </script>
+</body>
+</html>
